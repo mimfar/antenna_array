@@ -7,9 +7,8 @@ Created on Tue Oct  4 10:04:17 2022
 """
 
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.fftpack import fft
+
 
 def calc_AF_(X,I,P,theta,element_pattern=True):
     

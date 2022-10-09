@@ -7,14 +7,13 @@ Created on Sat Oct  8 17:47:01 2022
 """
 import os
 import sys
-sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
+current_path = os.path.dirname(os.path.abspath(__file__))
+if current_path not in sys.path: sys.path.insert(0,current_path)
 
 # from antenna_array import calc_AF, calc_AF_, plot_pattern ,peak_sll_hpbw_calc_I
 import antenna_array as aa
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.fftpack import fft
 import random
 
 
@@ -43,5 +42,6 @@ G = 20 * np.log10(np.abs(AF_linear))
 peak, theta_peak, SLL, HPBW = aa.calc_peak_sll_hpbw_calc(G, theta_deg) 
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(peak, theta_peak, SLL, HPBW))
 aa.plot_pattern(theta_deg,G, xlim = (-90,90),ylim = (-20,peak_plot),xlab = r'$\theta$',ylab = 'dB(AF^2)')
+plt.show()
 #
 
