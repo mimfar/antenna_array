@@ -8,7 +8,7 @@ Created on Mon Oct 10 23:21:26 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
-from collections import namedtuple
+from collections import namedtuple, Iterable
 from functools import partial
 import matplotlib
 PI = np.pi
@@ -26,16 +26,7 @@ class LinearArray():
     Version = '0.1'
     
     def __init__(self,num_elem,element_spacing,scan_angle=0,theta=[],element_pattern=True):
-        assert num_elem > 0 , ('array length can not be zero')
-        assert element_spacing > 0 , ('array length can not be zero')
-        self.num_elem = num_elem
-        self.element_spacing = element_spacing
-        self.scan_angle = scan_angle
-        self.theta = theta
-        self.element_pattern = element_pattern
         
-    @property
-    def calc_AF(self):
         '''AF_calc calculates the Array Factor (AF) of a linear antenna array with 
         uniform antenna element spacing 
         num_elem              :  # of elements
@@ -43,38 +34,50 @@ class LinearArray():
         theta (deg)     : spatial angle range -90:90 with braodside=0
         element_pattern :Applies cosine envelope on top of the array factor
         The Gain is calculated for the array factor only not array factor x element pattern '''
+        
+        assert num_elem > 0 , ('array length can not be zero')
+        self.num_elem = num_elem
+        self.element_spacing = element_spacing
+        if isinstance(self.element_spacing,(int,float)):   
+            self.X = np.linspace(0,self.num_elem-1,self.num_elem) * self.element_spacing
+        elif isinstance(self.element_spacing,Iterable): 
+            self.X = np.insert(np.cumsum(element_spacing),0,0)
+            self.num_elem = len(self.X)
+        self.X = self.X - np.mean(self.X)
+        self.scan_angle = scan_angle
+        self.theta = theta
+        self.element_pattern = element_pattern
+        
+    @classmethod
+    def from_element_position(cls,X,**kwargs):
+        return cls(len(X),np.diff(sorted(X)),**kwargs)
+        
+    @property
+    def calc_AF(self):
+        
 
-        L = (self.num_elem - 1) * self.element_spacing
-        X = np.linspace(0,self.num_elem-1,self.num_elem) * self.element_spacing
-        P = -2 * PI * X * np.sin(np.radians(self.scan_angle)) 
-        I = np.ones(X.shape)
+        array_length = max(self.X) - min(self.X)
+        self.P = -2 * PI * self.X * np.sin(np.radians(self.scan_angle)) 
+        self.I = np.ones(self.X.shape)
         if not any(self.theta):
-            HPBW = 51 / L
+            HPBW = 51 / array_length
             Nt = int(180 / (HPBW / 4))
             Nt = Nt + (Nt+1) % 2 # making Nt an odd number
             Nt = max(Nt,181) # 181 point is at least 1 degree theta resolution
             self.theta = np.linspace(-90,90,Nt)
-            self.AF = self.calc_AF_(X,I,P)          
+            self.AF = self.calc_AF_()          
         else:
-            self.AF = self.calc_AF_(X,I,P)
+            self.AF = self.calc_AF_()
         return self.AF  
         
-    def calc_AF_(self,X,I,P):
-
-        '''AF_calc_ calculates the Array Factor (AF) of a linear antenna array
-        X (wavelength) : Position of array elements
-        I(Linear)      : Excitation amplitude at each element
-        P(Radian)      : Excitation phase at each element
-        theta (deg)    : spatial angle range -90:90 with braodside=0
-        element_pattern:Applies cosine envelope on top of the array factor
-        The Gain is calculated for the array factor only not array factor x element pattern '''
+    def calc_AF_(self):
         
-        X = X.reshape(1,-1)
+        self.X = self.X.reshape(1,-1)
         theta = self.theta.reshape(-1,1)
-        P = P.reshape(X.shape)
-        I = I.reshape(X.shape)
-        AF = np.sum(I * np.exp(1j * P + 1j * 2 * np.pi 
-                      * np.dot (np.sin(np.radians(theta)),X)),axis = 1).reshape(theta.shape)
+        self.P = self.P.reshape(1,-1)
+        self.I = self.I.reshape(1,-1)
+        AF = np.sum(self.I * np.exp(1j * self.P + 1j * 2 * np.pi 
+                      * np.dot (np.sin(np.radians(theta)),self.X)),axis = 1).reshape(theta.shape)
           
         delta_theta = (theta[1] - theta[0]) * np.pi / 180
         AF_int = 0.5 * np.sum(np.abs(AF)**2 * np.sin(np.radians(theta + 90))) * delta_theta  # integral of AF^2
@@ -83,7 +86,7 @@ class LinearArray():
         if self.element_pattern:
             AF = AF * np.cos(np.radians(theta))
         
-        return AF
+        return AF.ravel()
 
     def calc_peak_sll_hpbw_calc(self):
         '''Function calculates the Peak value and angle, SLL, and HPBW of G in dB
@@ -116,15 +119,13 @@ class LinearArray():
         plt.xlabel(xlab)
         plt.ylabel(ylab)
         plt.title(title)
-        if xlim:
-            plt.xlim(xlim)
-        else:
-            plt.xlim(np.min(x),np.max(x))
-                
-        if ylim:
-            plt.ylim(ylim)
-        else:
-            plt.ylim(peak_plot-30,peak_plot)
+        if not xlim:
+           xlim = (np.min(x),np.max(x))
+        if not ylim:
+            ylim = ((peak_plot-30,peak_plot))
+        
+        plt.xlim(xlim)
+        plt.ylim(ylim)
         plt.grid(True)
         return  fig, ax
 
