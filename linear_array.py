@@ -8,6 +8,8 @@ Created on Mon Oct 10 23:21:26 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal.windows import get_window, taylor, chebwin
+
 from collections import namedtuple, Iterable
 from functools import partial
 import matplotlib
@@ -25,7 +27,7 @@ class LinearArray():
     
     Version = '0.1'
     
-    def __init__(self,num_elem,element_spacing,scan_angle=0,theta=[],element_pattern=True):
+    def __init__(self,num_elem,element_spacing,scan_angle=0,theta=[],element_pattern=True,window=None,SLL=None):
         
         '''AF_calc calculates the Array Factor (AF) of a linear antenna array with 
         uniform antenna element spacing 
@@ -47,6 +49,8 @@ class LinearArray():
         self.scan_angle = scan_angle
         self.theta = theta
         self.element_pattern = element_pattern
+        self.window = window
+        self.SLL = SLL
         
     @classmethod
     def from_element_position(cls,X,**kwargs):
@@ -59,6 +63,17 @@ class LinearArray():
         array_length = max(self.X) - min(self.X)
         self.P = -2 * PI * self.X * np.sin(np.radians(self.scan_angle)) 
         self.I = np.ones(self.X.shape)
+
+        if self.window:
+            self.I = get_window(self.window, self.num_elem)
+        if self.SLL:
+            if self.SLL < 50:
+                self.I = taylor(self.num_elem, nbar=5, sll=self.SLL)
+            else:
+                self.I = chebwin(self.num_elem, self.SLL)
+        
+ 
+                
         if not any(self.theta):
             HPBW = 51 / array_length
             Nt = int(180 / (HPBW / 4))

@@ -93,6 +93,13 @@ def plot_pattern(x,y,fig=None,marker = '-',xlim = None, ylim = None, xlab = 'x',
     peak_plot = 5 * (int(np.max(y) / 5) + 1)
     if not isinstance(fig, matplotlib.figure.Figure):
         fig, ax = plt.subplots(figsize=(8,6))
+    if fig.axes[0]:
+        plt.sca(fig.axes[0]) 
+
+    else:
+        plt.sca(fig.add_subplot(111))
+        
+    
     plt.plot(x,y,marker)
     ax = plt.gca()
     plt.xlabel(xlab)
