@@ -14,6 +14,8 @@ from antenna_array import calc_AF, calc_AF_, plot_pattern,polar_pattern ,calc_pe
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import cm
+
 import random
 from scipy.signal.windows import get_window , taylor, chebwin
 
@@ -60,7 +62,7 @@ print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1
 la.calc_envelope(theta1=0,theta2=60,delta_theta=10)
 fig1 ,ax1 = la.plot_envelope(plot_all=True);
 la.polar_pattern();
-fig1 = la.polar_envelope(plot_all=True);
+fig1 = la.polar_envelope(plot_all=False);
 
 #%% Linear Array Class Example nonuniform spacing sparse array with low side lobe level
 # The nonunifrom spacing removes the grating lobe
@@ -167,7 +169,7 @@ element_spacing = 0.5
 scan_angle = 0
 la = LinearArray(num_elem,element_spacing,scan_angle=scan_angle,window='hann')
 la.calc_AF
-ff = plt.figure()
+ff = plt.figure()   
 _,ax1 = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90),ylim=(-60,15))
 params = la.calc_peak_sll_hpbw_calc()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
@@ -176,3 +178,28 @@ la.calc_AF
 _,ax2 = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90),ylim=(-60,15),xlab='theta',ylab='Array Gain(dB)')
 params = la.calc_peak_sll_hpbw_calc()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
+#%%
+
+from planar_array import PlanarArray
+num_elem = (8,8)# number of row and col
+element_spacing = (0.6,0.55) 
+scan_angle = (30,45)
+pa = PlanarArray(num_elem,element_spacing,scan_angle=scan_angle)
+pa.calc_AF
+theta_deg,G = pa.pattern_cut(scan_angle[1])
+plt.figure()
+pa.plot_pattern(xlim=[-90,90],xlab='theta')
+pa.polar_pattern()
+pa.calc_peak_sll_hpbw_calc()
+pa.pattern_params
+
+#%% Contour plot
+fig1,ax1 = pa.pattern_contour(g_range=30,tlim=[0,90],plim=[0,180],title='Gain(dBi)');
+ax1.set_xticks(np.linspace(0,180,5));
+
+#%% polar3D
+fig1,ax1 = pa.polar3D(g_range=30,title='Gain(dBi)')
+#%% polarsurfnp.cos(np.pi/12),np.sin(np.pi/12)
+pa.polarsurf(g_range=30);
+#%%
+pa.polarsphere()
