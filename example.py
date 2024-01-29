@@ -103,7 +103,7 @@ a2.patch.set_alpha(0.15)
 a2.set_yticklabels('');
 
 #%%
-# An array of num_elem element with amlitude tapering / winodowing to reduce side lobe level
+# An array of num_elem element with amplitude tapering / windowing to reduce side lobe level
 num_elem = 16
 element_spacing = 0.5
 scan_angle = 0
@@ -181,10 +181,12 @@ print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1
 #%%
 
 from planar_array import PlanarArray
-num_elem = (8,8)# number of row and col
-element_spacing = (0.6,0.55) 
-scan_angle = (30,45)
-pa = PlanarArray(num_elem,element_spacing,scan_angle=scan_angle)
+num_elem = (3,8)# number of row and col
+element_spacing = (1,0.5) 
+scan_angle = (30,0)
+array_shape = ['tri',num_elem,element_spacing]
+pa = PlanarArray(array_shape,scan_angle=scan_angle)
+pa.plot_array()
 pa.calc_AF
 theta_deg,G = pa.pattern_cut(scan_angle[1])
 plt.figure()
@@ -198,8 +200,71 @@ fig1,ax1 = pa.pattern_contour(g_range=30,tlim=[0,90],plim=[0,180],title='Gain(dB
 ax1.set_xticks(np.linspace(0,180,5));
 
 #%% polar3D
-fig1,ax1 = pa.polar3D(g_range=30,title='Gain(dBi)')
+fig1,ax1 = pa.polar3D(g_range=20,title='Gain(dBi)')
+
 #%% polarsurfnp.cos(np.pi/12),np.sin(np.pi/12)
 pa.polarsurf(g_range=30);
-#%%
+#%% polarsphere
 pa.polarsphere()
+
+#%% circular array
+num_elem = [8,]# number of row and col
+radius = [2,] 
+scan_angle = (0,0)
+array_shape = ['circ',num_elem,radius]
+pa = PlanarArray(array_shape,scan_angle=scan_angle)
+pa.plot_array()
+pa.calc_AF
+theta_deg,G = pa.pattern_cut(scan_angle[1])
+plt.figure()
+pa.plot_pattern(xlim=[-90,90],xlab='theta')
+pa.polar_pattern(rlim=[-10,20])
+pa.calc_peak_sll_hpbw_calc()
+pa.pattern_params
+pa.polarsurf(g_range=20);
+
+#%%
+x = np.linspace(0,6,10)
+y = np.linspace(0,6,10)
+[X,Y] = np.meshgrid(x,y)
+delta_X = np.random.normal(0,.2,X.shape)
+delta_Y = np.random.normal(0,.2,Y.shape)
+X1 = X + delta_X
+Y1 = Y + delta_Y
+X1 = np.reshape(X1,(1,-1))
+Y1 = np.reshape(Y1,(1,-1))
+
+X = np.reshape(X,(1,-1))
+Y = np.reshape(Y,(1,-1))
+
+array_shape_rand = ['other',X1,Y1]
+scan_angle = (45,0)
+pa_rand = PlanarArray(array_shape_rand,scan_angle=scan_angle)
+fig,ax = pa_rand.plot_array()
+
+array_shape_rect = ['other',X,Y]
+pa_rect = PlanarArray(array_shape_rect,scan_angle=scan_angle)
+pa_rect.plot_array(fig=fig,colormarker='xr')
+
+pa_rand.calc_AF
+# theta_deg,G = pa_rand.pattern_cut(scan_angle[1])
+plt.figure()
+fig,ax = pa_rand.plot_pattern(xlim=[-90,90],xlab='theta')
+pa_rect.calc_AF
+theta_deg,G = pa_rect.pattern_cut(scan_angle[1])
+pa_rect.plot_pattern(xlim=[-90,90],xlab='theta',fig=fig)
+
+
+fig, ax = pa_rand.polar_pattern(rlim=[-30,30])
+pa_rect.polar_pattern(rlim=[-30,30],fig=fig)
+pa_rand.calc_peak_sll_hpbw_calc()
+pa_rect.calc_peak_sll_hpbw_calc()
+
+# pa_rand.pattern_params
+# # pa.polarsurf(g_range=30);
+# # pa.calc_peak_sll_hpbw_calc()
+# pa_rand.pattern_params
+fig1,ax1 = pa_rand.polar3D(g_range=20,title='Gain(dBi)')
+
+
+

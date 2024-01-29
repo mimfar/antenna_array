@@ -31,7 +31,7 @@ class PlanarArray():
     
     Version = '0.1'
     
-    def __init__(self,num_elem,element_spacing,scan_angle=(0,0),theta=[],phi=[],element_pattern=True,window=None,SLL=None):
+    def __init__(self,array_shape,scan_angle=(0,0),theta=[],phi=[],element_pattern=True,window=None,SLL=None):
         
         '''AF_calc calculates the Array Factor (AF) of a planar antenna array with either rect or tri grids
         
@@ -41,13 +41,46 @@ class PlanarArray():
         theta (deg), phi(deg)  : spatial angle theta:0-180,phi=0-360 with  braodside=(0,0)
         element_pattern : Applies cosine envelope on top of the array factor
         '''
+
+        if array_shape[0] in ['rect','tri']:
+            self.shape = array_shape[0]
+            num_elem = array_shape[1]
+            element_spacing = array_shape[2]
+            assert num_elem[0] > 0 , ('array length can not be zero')
+            assert num_elem[1] > 0 , ('array length can not be zero')
+            self.num_elem = num_elem
+            self.element_spacing = element_spacing
+            self.row = np.linspace(0,self.num_elem[0]-1,self.num_elem[0]) * self.element_spacing[0]
+            self.col = np.linspace(0,self.num_elem[1]-1,self.num_elem[1]) * self.element_spacing[1]
+            [self.Y,self.X] = np.meshgrid(self.row,self.col)
+            d_={'rect':0,'tri':0.5}
+            self.X[:,0::2] = self.X[:,0::2] + d_[self.shape] * self.element_spacing[1]
+            self.X = self.X.reshape(-1,)
+            self.Y = self.Y.reshape(-1,)
+
+        elif array_shape[0] == 'circ':
+            self.shape = 'circ'
+            self.num_elem = array_shape[1]
+            self.radius = array_shape[2]
+            self.array_size = sum(self.num_elem)
+            self.X = np.array([])
+            self.Y = np.array([])
+
+            for idx, n in enumerate(self.num_elem):
+                ang = np.linspace(0,2*np.pi,n+1)
+                self.X = np.concatenate((self.X,self.radius[idx] * np.cos(ang[:-1])))
+                self.Y = np.concatenate((self.Y,self.radius[idx] * np.sin(ang[:-1])))
+
+                
+        elif array_shape[0] =='other':
+            self.shape = 'other'
+            self.X = array_shape[1].reshape(-1,)
+            self.Y = array_shape[2].reshape(-1,)
+            self.array_size = len(self.X)
+        else:
+            raise Exception(f'{array_shape[0]} is not a valid planar array shape ')
+            
         
-        assert num_elem[0] > 0 , ('array length can not be zero')
-        assert num_elem[1] > 0 , ('array length can not be zero')
-        self.num_elem = num_elem
-        self.element_spacing = element_spacing
-        self.row = np.linspace(0,self.num_elem[0]-1,self.num_elem[0]) * self.element_spacing[0]
-        self.col = np.linspace(0,self.num_elem[1]-1,self.num_elem[1]) * self.element_spacing[1]
         self.scan_angle = scan_angle
         self.theta = theta
         self.phi = phi
@@ -55,15 +88,7 @@ class PlanarArray():
         self.window = window
         self.SLL = SLL
         
-    @classmethod
-    def from_element_position(cls,X,**kwargs):
-        return cls(len(X),np.diff(sorted(X)),**kwargs)
-        
-    @property
-    def calc_AF(self):
-        
-
-        array_length = max(self.row[-1] ,self.col[-1])
+        array_length = np.sqrt((np.max(self.X) - np.min(self.X))**2 + (np.max(self.Y) - np.min(self.Y))**2)
         if not any(self.theta):
             HPBW = 51 / array_length
             Nt = int(180 / (HPBW / 4))
@@ -71,33 +96,46 @@ class PlanarArray():
             Nt = max(Nt,181) # 181 point is at least 1 degree theta resolution
             self.theta = np.linspace(0,180,Nt)
         if not any(self.phi):
-            self.phi = np.linspace(0,360,361)
+            self.phi = np.linspace(0,360,Nt)
         
-        self.row_ = np.reshape(self.row,(-1,1,1))   
-        self.col_ = np.reshape(self.col,(-1,1,1))        
-
-
-        self.Pcol = -2 * PI * self.col_ * np.sin(np.radians(self.scan_angle[0])) * np.cos(np.radians(self.scan_angle[1])) 
-        self.Prow = -2 * PI * self.row_ * np.sin(np.radians(self.scan_angle[0])) * np.sin(np.radians(self.scan_angle[1])) 
+    # @classmethod
+    # def from_element_position(cls,X,**kwargs):
+    #     return cls(len(X),np.diff(sorted(X)),**kwargs)
         
-        self.Icol = np.ones(self.col_.shape)
-        self.Irow = np.ones(self.row_.shape)
-
-        if self.window:
-            self.I = get_window(self.window, self.num_elem)
-        if self.SLL:
-            if self.SLL < 50:
-                self.I = taylor(self.num_elem, nbar=5, sll=self.SLL)
-            else:
-                self.I = chebwin(self.num_elem, self.SLL)
+    @property
+    def calc_AF(self):
         
+        if self.shape == 'rect':
  
-        self.AF = self.calc_AF_()          
-       
+            
+            self.row_ = np.reshape(self.row,(-1,1,1))   
+            self.col_ = np.reshape(self.col,(-1,1,1))        
+    
+    
+            self.Pcol = -2 * PI * self.col_ * np.sin(np.radians(self.scan_angle[0])) * np.cos(np.radians(self.scan_angle[1])) 
+            self.Prow = -2 * PI * self.row_ * np.sin(np.radians(self.scan_angle[0])) * np.sin(np.radians(self.scan_angle[1])) 
+            
+            self.Icol = np.ones(self.col_.shape)
+            self.Irow = np.ones(self.row_.shape)
+    
+            if self.window:
+                self.I = get_window(self.window, self.num_elem)
+            if self.SLL:
+                if self.SLL < 50:
+                    self.I = taylor(self.num_elem, nbar=5, sll=self.SLL)
+                else:
+                    self.I = chebwin(self.num_elem, self.SLL)
+            
+     
+            self.AF = self.calc_AF_rect()     
+        else:
+            self.AF = self.calc_AF_()
+           
         return self.AF  
         
-    def calc_AF_(self):
-        print(self.theta.shape)
+
+
+    def calc_AF_rect(self):
         theta = self.theta.reshape(1,-1)
         phi = self.phi.reshape(-1,1)
         CPST = np.matmul(np.cos(phi * PI/180),np.sin(theta * PI/180))
@@ -120,6 +158,49 @@ class PlanarArray():
         AF = AF/ (AF_int ** 0.5)
         
         return AF
+
+    def calc_AF_ (self):
+        theta = self.theta.reshape(1,-1)
+        phi = self.phi.reshape(-1,1)
+        XCPST = np.tensordot(self.X,np.matmul(np.cos(phi * PI/180),np.sin(theta * PI/180)),axes=0)
+        YSPST = np.tensordot(self.Y,np.matmul(np.sin(phi * PI/180),np.sin(theta * PI/180)),axes=0)
+        self.Px = -2 * PI * self.X * np.sin(np.radians(self.scan_angle[0])) * np.cos(np.radians(self.scan_angle[1])) 
+        self.Py = -2 * PI * self.Y * np.sin(np.radians(self.scan_angle[0])) * np.sin(np.radians(self.scan_angle[1])) 
+        self.P = self.Px + self.Py
+        self.I = np.ones(self.P.shape)
+        AF =  np.sum(self.I.reshape(-1,1,1) * np.exp(1j * self.P.reshape(-1,1,1)) * np.exp(1j * (2 * PI * XCPST)) * np.exp(1j * (2 * PI * YSPST)),axis=0)
+
+        T = np.tile(theta,(len(phi),1))
+        cos_theta = np.cos(np.radians(T))
+        cos_theta[T>89] = np.cos(np.radians(89.5))
+        
+        if self.element_pattern:
+            AF = AF * cos_theta
+
+        delta_theta = (self.theta[1] - self.theta[0]) * np.pi / 180
+        delta_phi= (phi[1] - phi[0]) * np.pi / 180
+            
+        AF_int =  np.sum(np.abs(AF)**2 * np.sin(np.radians(T))) * delta_theta * delta_phi / 4 / PI # integral of AF^2
+        AF = AF/ (AF_int ** 0.5)
+        
+        return AF
+
+    def plot_array(self,fig=None,colormarker='ob'):
+        if not isinstance(fig, matplotlib.figure.Figure):
+            fig, ax = plt.subplots(figsize=(8,6))
+
+        plt.plot(self.X - np.mean(self.X),self.Y - np.mean(self.Y),colormarker)
+        ax = plt.gca()
+        if self.shape in ['rect','tri']:
+            plt.arrow(self.col[1], self.row[1], 0,self.element_spacing[0], length_includes_head=True,width=.025)
+            plt.arrow(self.col[1], self.row[1], self.element_spacing[1], 0, length_includes_head=True,width=.025)
+            plt.text(self.col[1], self.row[1] + self.element_spacing[0]/2,str(self.element_spacing[0]),ha='center',va='center',backgroundcolor='white')
+            plt.text(self.col[1]+ self.element_spacing[1]/2, self.row[1] ,str(self.element_spacing[1]),ha='center',va='center',backgroundcolor='white')
+        plt.xlabel('wavelength')
+        plt.ylabel('wavelength')
+        plt.title('Array Manifold')
+        plt.axis('equal')
+        return fig,ax
 
     def pattern_cut(self,cut_angle):
         G = db20(self.AF)
@@ -175,9 +256,10 @@ class PlanarArray():
         peak_plot = 5 * (int(np.max(r) / 5) + 1)
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection': 'polar'})
-        else:
-            ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
-            
+        # else:
+        #     ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
+        ax = plt.gca()
+
         ax.plot(np.radians(t), r)
         ax.set_thetagrids(angles=np.linspace(-90,90,13))
         if tlim:
@@ -245,12 +327,16 @@ class PlanarArray():
     def polar3D(self,**kwargs):
         G =  20 * np.log10(np.abs(self.AF))
         [T,P] = np.meshgrid(self.theta,self.phi)
-        return self._polar3D(T,P,G,**kwargs)
+        max1 = max(np.max(self.X - np.mean(self.X)),np.max(self.Y - np.mean(self.Y)))
+        fig, ax = self._polar3D(T,P,G,(self.X - np.mean(self.X))/max1,(self.Y-np.mean(self.Y))/max1,**kwargs)
+
+        
+        return fig, ax
     
         
     
     @staticmethod
-    def _polar3D(T,P,G,g_range=30,fig=None,title=''):
+    def _polar3D(T,P,G,R,C,g_range=30,fig=None,title=''):
         
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
@@ -284,13 +370,14 @@ class PlanarArray():
         ax.set_zlim([-rat,rat])
         ax.set_xlim([-rat,rat])
         ax.set_ylim([-rat,rat])
-
         plt.title(title)
         plt.axis('off')
         # ax.plot_wireframe(X,Y,Z,rstride=20,cstride=20)
         ax.view_init(elev=24, azim=25)
-        fig.colorbar(cm.ScalarMappable(norm=plt.Normalize(vmin=peak-g_range,vmax=peak), cmap='jet'),shrink=0.4)
-
+        fig.colorbar(cm.ScalarMappable(norm=plt.Normalize(vmin=peak-g_range,vmax=peak), cmap='jet'),shrink=0.5,ax=ax)
+        ax.plot(g_range/2 * R,g_range/2*C,'.b')
+        # for n in range(C.shape[0]):
+        #     ax.plot(g_range/2 * C[n,:],g_range/2 * R[n,:],'.b')
         return fig,ax;
     
     def pattern_contour(self,**kwargs):
@@ -383,4 +470,4 @@ class PlanarArray():
         ax.text(0,rat,0,'y',color='red')
         ax.text(0,0,rat,'z',color='red')
         ax.view_init(elev=24, azim=25)
-        fig.colorbar(cm.ScalarMappable(norm=plt.Normalize(vmin=peak-r_range,vmax=peak), cmap='jet'),shrink=0.5)
+        fig.colorbar(cm.ScalarMappable(norm=plt.Normalize(vmin=peak-r_range,vmax=peak), cmap='jet'),shrink=0.5,ax=ax)
