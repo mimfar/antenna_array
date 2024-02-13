@@ -92,7 +92,7 @@ def calc_peak_sll_hpbw(G, theta_deg):
 def plot_pattern(x,y,fig=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title=''):
     peak_plot = 5 * (int(np.max(y) / 5) + 1)
     if not isinstance(fig, matplotlib.figure.Figure):
-        fig, ax = plt.subplots(figsize=(8,6))
+        fig, ax = plt.subplots(figsize=(6,4))
     if fig.axes[0]:
         plt.sca(fig.axes[0]) 
 

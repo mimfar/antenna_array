@@ -1,1 +1,0 @@
-#Py Antenna ArrayIncludes antenna_array module that calcualts radiation pattern of a linear antenna array and some patterns paramterts such as HPBW and SLL.All you need to do is to copy antenna_array.py file into your working directory and then start using it. See exampe.py for details. 

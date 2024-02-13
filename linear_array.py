@@ -10,7 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal.windows import get_window, taylor, chebwin
 
-from collections import namedtuple, Iterable
+from collections.abc import Iterable
+from collections import namedtuple
 from functools import partial
 import matplotlib
 PI = np.pi
@@ -103,7 +104,7 @@ class LinearArray():
         
         return AF.ravel()
 
-    def calc_peak_sll_hpbw_calc(self):
+    def calc_peak_sll_hpbw(self):
         '''Function calculates the Peak value and angle, SLL, and HPBW of G in dB
         assuming a pattern with a single peak (no grating lobes)'''
         G,theta_deg = np.ravel(db20(self.AF)),np.ravel(self.theta)
@@ -175,8 +176,19 @@ class LinearArray():
             
         return fig,ax
         
-    def plot_pattern(self,**kwargs):
-        return self._plot(self.theta,db20(self.AF),**kwargs)
+    def plot_pattern(self,annotate=False,**kwargs):
+        fig,ax = self._plot(self.theta,db20(self.AF),**kwargs)
+        if annotate:
+            peak,t_peak,sll,hpbw = self.calc_peak_sll_hpbw()
+            ax.plot(t_peak,peak,'o')
+            ax.text(t_peak,peak,f'peak={peak:1.1f}dB @{t_peak:1.1f}deg',va='center')
+            ax.arrow(t_peak-hpbw/2, peak-3, hpbw, 0 , linewidth=0.5,color='black',length_includes_head=True,width=.25)
+            ax.text(t_peak+hpbw/2,peak-3,f'HPBW={hpbw:1.1f}deg',va='center')
+            ax.plot([t_peak-2 * hpbw,t_peak],[peak,peak],'--k',linewidth=0.5)
+            ax.plot([t_peak-2 * hpbw,t_peak+ 2 * hpbw],[peak-sll,peak-sll],'--k',linewidth=0.5)
+            ax.arrow(t_peak-2*hpbw, peak, 0, -sll , linewidth=0.5,color='black',length_includes_head=True,width=.5)
+            ax.text(t_peak-2*hpbw,peak-sll/2,f'SLL={sll:1.1f}dB',ha='right')
+        return fig,ax
         
     def plot_envelope(self,plot_all=True,**kwargs):
         if plot_all:    

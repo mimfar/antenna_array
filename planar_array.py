@@ -11,11 +11,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal.windows import get_window, taylor, chebwin
 
-from collections import namedtuple, Iterable
+from collections.abc import Iterable
+from collections import namedtuple
 from functools import partial
 import matplotlib
-from matplotlib import cm
-
+from matplotlib import cm,ticker
+import mpl_toolkits
+ 
 
 PI = np.pi
 
@@ -96,7 +98,7 @@ class PlanarArray():
             Nt = max(Nt,181) # 181 point is at least 1 degree theta resolution
             self.theta = np.linspace(0,180,Nt)
         if not any(self.phi):
-            self.phi = np.linspace(0,360,Nt)
+            self.phi = np.linspace(0,360,2 * Nt)
         
     # @classmethod
     # def from_element_position(cls,X,**kwargs):
@@ -185,17 +187,20 @@ class PlanarArray():
         
         return AF
 
-    def plot_array(self,fig=None,colormarker='ob'):
+    def plot_array(self,fig=None,ax=None,colormarker='ob'):
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
-
+        if ax:
+            plt.sca(ax)
+        else:
+            ax = fig.add_axes()
         plt.plot(self.X - np.mean(self.X),self.Y - np.mean(self.Y),colormarker)
-        ax = plt.gca()
-        if self.shape in ['rect','tri']:
-            plt.arrow(self.col[1], self.row[1], 0,self.element_spacing[0], length_includes_head=True,width=.025)
-            plt.arrow(self.col[1], self.row[1], self.element_spacing[1], 0, length_includes_head=True,width=.025)
-            plt.text(self.col[1], self.row[1] + self.element_spacing[0]/2,str(self.element_spacing[0]),ha='center',va='center',backgroundcolor='white')
-            plt.text(self.col[1]+ self.element_spacing[1]/2, self.row[1] ,str(self.element_spacing[1]),ha='center',va='center',backgroundcolor='white')
+        # ax = plt.gca()
+        # if self.shape in ['rect','tri']:
+        #     plt.arrow(self.col[0], self.row[0], 0,self.element_spacing[0], length_includes_head=True,width=.025)
+        #     plt.arrow(self.col[0], self.row[0], self.element_spacing[1], 0, length_includes_head=True,width=.025)
+        #     plt.text(self.col[0], self.row[0] + self.element_spacing[0]/2,str(self.element_spacing[0]),ha='center',va='center',backgroundcolor='white')
+        #     plt.text(self.col[0]+ self.element_spacing[1]/2, self.row[1] ,str(self.element_spacing[1]),ha='center',va='center',backgroundcolor='white')
         plt.xlabel('wavelength')
         plt.ylabel('wavelength')
         plt.title('Array Manifold')
@@ -231,13 +236,16 @@ class PlanarArray():
         return self.pattern_params
     
     @staticmethod
-    def _plot(x,y,fig=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title = ''):
+    def _plot(x,y,fig=None,ax=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title = ''):
         peak_plot = 5 * (int(np.max(y) / 5) + 1)
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
-
+        if ax:
+            plt.sca(ax)
+        else:
+            ax = fig.add_axes()
         plt.plot(x,y,marker)
-        ax = plt.gca()
+       # ax = plt.gca()
         plt.xlabel(xlab)
         plt.ylabel(ylab)
         plt.title(title)
@@ -336,13 +344,15 @@ class PlanarArray():
         
     
     @staticmethod
-    def _polar3D(T,P,G,R,C,g_range=30,fig=None,title=''):
+    def _polar3D(T,P,G,R,C,g_range=30,fig=None,ax=None,title=''):
         
-        if not isinstance(fig, matplotlib.figure.Figure):
+        if (not isinstance(fig, matplotlib.figure.Figure) and
+            not isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D)):
             fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
-        else:
+        elif (isinstance(fig, matplotlib.figure.Figure) and
+             not isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D)):
             ax = fig.add_subplot(projection='3d')
-        
+                    
         peak = np.max(G)
 
         G = G - peak + g_range
@@ -370,8 +380,8 @@ class PlanarArray():
         ax.set_zlim([-rat,rat])
         ax.set_xlim([-rat,rat])
         ax.set_ylim([-rat,rat])
-        plt.title(title)
-        plt.axis('off')
+        ax.set_title(title)
+        ax.axis('off')
         # ax.plot_wireframe(X,Y,Z,rstride=20,cstride=20)
         ax.view_init(elev=24, azim=25)
         fig.colorbar(cm.ScalarMappable(norm=plt.Normalize(vmin=peak-g_range,vmax=peak), cmap='jet'),shrink=0.5,ax=ax)
@@ -386,12 +396,12 @@ class PlanarArray():
         return self._plot_contour(T,P,G,**kwargs);
         
     @staticmethod
-    def _plot_contour(T,P,G,g_range=30,fig=None,tlim = None, plim = None,tlab='theta',plab='phi',title=''):
+    def _plot_contour(T,P,G,g_range=30,fig=None,ax=None,tlim = None, plim = None,tlab='theta',plab='phi',title=''):
         
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
-        else:
-            ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
+        
+        
             
         peak = np.max(G)
         G[G < (peak - g_range)] = peak - g_range
@@ -407,19 +417,19 @@ class PlanarArray():
         
         return fig,ax;
 
-    def polarsurf(self,g_range=30,fig=None,title='Polar Surf'):
+    def polarsurf(self,g_range=30,fig=None,ax=None,title='Polar Surf'):
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
         else:
             ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
-        
+
         G =  20 * np.log10(np.abs(self.AF))
         [T,P] = np.meshgrid(self.theta,self.phi)
         peak = np.max(G)
         X = np.sin(np.radians(T)) * np.cos(np.radians(P))
 
         Y = np.sin(np.radians(T)) * np.sin(np.radians(P))
-        G[G < (peak - g_range)] = peak - g_range
+        G[G < (peak - g_range)] = peak - g_range -1
 
         for p in np.linspace(0,330,12) * np.pi / 180:
             plt.plot([0, np.cos(p)],[0, np.sin(p)],'--',color=[0.5,0.5,0.5],alpha=0.5)
@@ -433,7 +443,9 @@ class PlanarArray():
 
         plt.axis('equal')
         plt.axis('off')
-        plt.contourf(X,Y,G,cmap='hot')
+        CS3 = plt.contourf(X,Y,G,30,cmap=cm.jet,extend='min',vmin=peak-g_range,vmax=peak)
+        # CS3.cmap.set_under('blue')
+
         plt.colorbar()
         plt.clim([peak-g_range,peak])
         plt.title(title)

@@ -19,7 +19,7 @@ from matplotlib import cm
 import random
 from scipy.signal.windows import get_window , taylor, chebwin
 
-
+#%%
 num_elem = 10# number of elements
 element_spacing = 0.5 
 scan_angle = 30
@@ -37,7 +37,7 @@ X = np.cumsum(random.choices(element_spacing,k=num_elem))
 P = -2 * np.pi * X * np.sin(np.radians(scan_angle))
 I = np.ones(X.shape)
 I = get_window('hamming', num_elem)
-Nt = 181 # length of theta vectoe
+Nt = 181 # length of theta vector
 theta_deg,dtheta_deg = np.linspace(-90,90,Nt,retstep = True)
 theta_deg = theta_deg.reshape(Nt,1)
 AF_linear = calc_AF_(X,I,P,theta_deg)
@@ -56,13 +56,13 @@ scan_angle = 30
 la = LinearArray(num_elem,element_spacing,scan_angle=scan_angle)
 la.calc_AF
 ff = plt.figure()
-_,aa = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90),ylim=(-30,10))
-params = la.calc_peak_sll_hpbw_calc()
-print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
-la.calc_envelope(theta1=0,theta2=60,delta_theta=10)
-fig1 ,ax1 = la.plot_envelope(plot_all=True);
-la.polar_pattern();
-fig1 = la.polar_envelope(plot_all=False);
+_,aa = la.plot_pattern(annotate=True,fig=ff,marker='-',xlim=(-90,90),ylim=(-30,10))
+params = la.calc_peak_sll_hpbw()
+# print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
+# la.calc_envelope(theta1=0,theta2=60,delta_theta=10)
+# fig1 ,ax1 = la.plot_envelope(plot_all=True);
+# la.polar_pattern();
+# fig1 = la.polar_envelope(plot_all=False);
 
 #%% Linear Array Class Example nonuniform spacing sparse array with low side lobe level
 # The nonunifrom spacing removes the grating lobe
@@ -73,7 +73,7 @@ la = LinearArray(num_elem,element_spacing,scan_angle=scan_angle)
 la.calc_AF
 ff = plt.figure()
 _,aa = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90))
-params = la.calc_peak_sll_hpbw_calc()
+params = la.calc_peak_sll_hpbw()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
 
 
@@ -81,7 +81,7 @@ element_spacing_uniform = np.mean(element_spacing)
 la_uniform = LinearArray(num_elem,element_spacing_uniform,scan_angle=scan_angle)
 la_uniform.calc_AF
 la_uniform.plot_pattern(fig=ff,marker='--',xlim=(-90,90),ylim=(-20,25))
-params = la_uniform.calc_peak_sll_hpbw_calc()
+params = la_uniform.calc_peak_sll_hpbw()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
 a2 = ff.add_axes([0.15, 0.75, 0.7, 0.1])
 a2.plot(la.X,np.ones(la.X.shape),'.b')
@@ -95,7 +95,7 @@ la = LinearArray.from_element_position(X)
 la.calc_AF
 ff = plt.figure()
 _,aa = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90),ylim=(-20,20))
-params = la.calc_peak_sll_hpbw_calc()
+params = la.calc_peak_sll_hpbw()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
 a2 = ff.add_axes([0.2, 0.2, 0.6, 0.1])
 a2.plot(la.X,np.zeros(la.X.shape),'.b')
@@ -171,12 +171,12 @@ la = LinearArray(num_elem,element_spacing,scan_angle=scan_angle,window='hann')
 la.calc_AF
 ff = plt.figure()   
 _,ax1 = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90),ylim=(-60,15))
-params = la.calc_peak_sll_hpbw_calc()
+params = la.calc_peak_sll_hpbw()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
 la.SLL = 55
 la.calc_AF
 _,ax2 = la.plot_pattern(fig=ff,marker='-',xlim=(-90,90),ylim=(-60,15),xlab='theta',ylab='Array Gain(dB)')
-params = la.calc_peak_sll_hpbw_calc()
+params = la.calc_peak_sll_hpbw()
 print('Peak = {:1.1f}dBi, theta_peak = {:1.1f}deg, SLL = {:1.1f}dB, HPBW = {:1.1f}deg'.format(*params))
 #%%
 
@@ -186,30 +186,31 @@ element_spacing = (1,0.5)
 scan_angle = (30,0)
 array_shape = ['tri',num_elem,element_spacing]
 pa = PlanarArray(array_shape,scan_angle=scan_angle)
-pa.plot_array()
+fig,ax = plt.subplots(1,2,figsize=(10,3))
+pa.plot_array(fig=fig,ax=ax[0])
+
+# pa.plot_array()
 pa.calc_AF
 theta_deg,G = pa.pattern_cut(scan_angle[1])
-plt.figure()
-pa.plot_pattern(xlim=[-90,90],xlab='theta')
-pa.polar_pattern()
+pa.plot_pattern(fig=fig,ax=ax[1],xlim=[-90,90],xlab='theta',ylab='dB',title='Radiation Pattern')
 pa.calc_peak_sll_hpbw_calc()
 pa.pattern_params
-
+#%%
+pa.polarsurf(g_range=30);
 #%% Contour plot
-fig1,ax1 = pa.pattern_contour(g_range=30,tlim=[0,90],plim=[0,180],title='Gain(dBi)');
+fig1,ax1 = pa.pattern_contour(g_range=30,tlim=[0,180],plim=[-180,180],title='Gain(dBi)');
 ax1.set_xticks(np.linspace(0,180,5));
 
 #%% polar3D
 fig1,ax1 = pa.polar3D(g_range=20,title='Gain(dBi)')
 
-#%% polarsurfnp.cos(np.pi/12),np.sin(np.pi/12)
-pa.polarsurf(g_range=30);
+
 #%% polarsphere
 pa.polarsphere()
 
 #%% circular array
-num_elem = [8,]# number of row and col
-radius = [2,] 
+num_elem = [7,8]# number of row and col
+radius = [1,2] 
 scan_angle = (0,0)
 array_shape = ['circ',num_elem,radius]
 pa = PlanarArray(array_shape,scan_angle=scan_angle)
@@ -220,7 +221,7 @@ plt.figure()
 pa.plot_pattern(xlim=[-90,90],xlab='theta')
 pa.polar_pattern(rlim=[-10,20])
 pa.calc_peak_sll_hpbw_calc()
-pa.pattern_params
+print(pa.pattern_params)
 pa.polarsurf(g_range=20);
 
 #%%
@@ -266,5 +267,43 @@ pa_rect.calc_peak_sll_hpbw_calc()
 # pa_rand.pattern_params
 fig1,ax1 = pa_rand.polar3D(g_range=20,title='Gain(dBi)')
 
+#%% hexagone shape array
+
+Ls = 3
+N = 7
+X = np.linspace(0,Ls,N)
+Y = np.zeros(X.shape)
+
+dx = Ls / (N - 1)
+X1 =  X.copy()
+for n in range(N-1):
+    X1 = X1[:-1] +   dx / 2
+    X = np.hstack((X,X1))
+    Y = np.hstack((Y, dx * np.sqrt(3) / 2 * (n+1) * np.ones(X1.shape)))
 
 
+X_all = np.hstack((X[0],X[N:]))
+Y_all = np.hstack((Y[0],Y[N:]))
+for n in range(1,6): 
+    Xr = X[N:] * np.cos(n * np.pi / 3) - Y[N:] * np.sin(n * np.pi / 3)
+    Yr = X[N:] * np.sin(n * np.pi / 3) + Y[N:]* np.cos(n * np.pi / 3)
+    # plt.plot(Xr,Yr,'o')
+    X_all = np.hstack((X_all,Xr))
+    Y_all = np.hstack((Y_all,Yr))
+
+
+plt.plot(X_all,Y_all,'xr')
+plt.axis('equal')
+
+#%%
+array_shape_rand = ['other',X_all,Y_all]
+scan_angle = (0,0)
+pa_Hex = PlanarArray(array_shape_rand,scan_angle=scan_angle)
+fig,ax = pa_Hex.plot_array()
+pa_Hex.calc_AF
+plt.figure()
+fig,ax = pa_Hex.plot_pattern(xlim=[-90,90],xlab='theta')
+
+fig1,ax1 = pa_Hex.polar3D(g_range=30,title='Gain(dBi)')
+
+pa_Hex.polarsurf(g_range=30);
