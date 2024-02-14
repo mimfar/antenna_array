@@ -98,7 +98,7 @@ class PlanarArray():
             Nt = max(Nt,181) # 181 point is at least 1 degree theta resolution
             self.theta = np.linspace(0,180,Nt)
         if not any(self.phi):
-            self.phi = np.linspace(0,360,2 * Nt)
+            self.phi = np.linspace(0,360,2 * Nt-1)
         
     # @classmethod
     # def from_element_position(cls,X,**kwargs):
@@ -215,7 +215,7 @@ class PlanarArray():
         return theta_cut , np.hstack((np.flip(G[idx_phi_cut2,1:]), G[idx_phi_cut1,:]) )
         
     
-    def calc_peak_sll_hpbw_calc(self):
+    def calc_peak_sll_hpbw(self):
         '''Function calculates the Peak value and angle, SLL, and HPBW of G in dB
         assuming a pattern with a single peak (no grating lobes)'''
         theta_deg,G = self.pattern_cut(self.scan_angle[1])
@@ -242,8 +242,8 @@ class PlanarArray():
             fig, ax = plt.subplots(figsize=(8,6))
         if ax:
             plt.sca(ax)
-        else:
-            ax = fig.add_axes()
+        # else:
+        #     ax = fig.add_axes()
         plt.plot(x,y,marker)
        # ax = plt.gca()
         plt.xlabel(xlab)
@@ -392,11 +392,29 @@ class PlanarArray():
     
     def pattern_contour(self,**kwargs):
         G =  20 * np.log10(np.abs(self.AF))
-        [T,P] = np.meshgrid(self.theta,self.phi)
-        return self._plot_contour(T,P,G,**kwargs);
+        # [T,P] = np.meshgrid(self.theta,self.phi)
+        # idx_p = [np.argmin(abs(self.phi-phi_0)) for phi_0 in [90,180,270]]
+        # G1 = G[0:idx_p[0],:]
+        # G2 = np.flip(G[idx_p[0]:idx_p[1],1:],axis=1)
+        # G3 = np.flip(G[idx_p[1]:idx_p[2],1:],axis=1)
+        # G4 = G[idx_p[2]:-1,:]
+        # print(G1.shape,G2.shape,G3.shape,G4.shape)
+        # GT = np.vstack((np.hstack((G2,G4)), np.hstack((G3,G1))))
+        # thetaT = np.linspace(-180,180,2*len(self.theta)-1)
+        # phiT = np.linspace(-90,90,int(len(self.phi)/2))
+        # [TT,PT] = np.meshgrid(thetaT,phiT)
+
+        # print(TT.shape,PT.shape,GT.shape  )      
+        GT = np.vstack((np.hstack((np.flip(G[1:,1:],axis=1),np.flip(G[1:,:],axis=0))), np.hstack((np.flip(G[:,1:],axis=1),G))))
+        thetaT = np.hstack((-np.flip(self.theta[1:]), self.theta))
+        phiT = np.hstack((-np.flip(self.phi[1:]), self.phi))
+        [TT,PT] = np.meshgrid(thetaT,phiT)
+
+        
+        return self._plot_contour(TT,PT,GT,**kwargs);
         
     @staticmethod
-    def _plot_contour(T,P,G,g_range=30,fig=None,ax=None,tlim = None, plim = None,tlab='theta',plab='phi',title=''):
+    def _plot_contour(T,P,G,g_range=30,fig=None,ax=None,tlim = None, plim = None,tlab=r'$\theta$',plab=r'$\phi$',title=''):
         
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
@@ -405,8 +423,7 @@ class PlanarArray():
             
         peak = np.max(G)
         G[G < (peak - g_range)] = peak - g_range
-        G1 = np.vstack((G[int(G.shape[0]/2)+1:,:],G[:int(G.shape[0]/2)+1,:]))
-        plt.contourf(P-180,T,G1,cmap='hot')
+        plt.contourf(P,T,G,cmap='hot')
         plt.colorbar()
         plt.clim([peak-g_range,peak])
         plt.xlabel(plab);
