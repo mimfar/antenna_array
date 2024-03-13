@@ -11,11 +11,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal.windows import get_window, taylor, chebwin
 
-from collections import namedtuple, Iterable
+from collections.abc import Iterable
+from collections import namedtuple
 from functools import partial
 import matplotlib
-from matplotlib import cm
-
+from matplotlib import cm,ticker
+import mpl_toolkits
+ 
 
 PI = np.pi
 
@@ -96,7 +98,7 @@ class PlanarArray():
             Nt = max(Nt,181) # 181 point is at least 1 degree theta resolution
             self.theta = np.linspace(0,180,Nt)
         if not any(self.phi):
-            self.phi = np.linspace(0,360,Nt)
+            self.phi = np.linspace(0,360,2 * Nt-1)
         
     # @classmethod
     # def from_element_position(cls,X,**kwargs):
@@ -185,17 +187,20 @@ class PlanarArray():
         
         return AF
 
-    def plot_array(self,fig=None,colormarker='ob'):
+    def plot_array(self,fig=None,ax=None,colormarker='ob'):
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
-
+        if ax:
+            plt.sca(ax)
+        else:
+            ax = fig.add_axes()
         plt.plot(self.X - np.mean(self.X),self.Y - np.mean(self.Y),colormarker)
-        ax = plt.gca()
-        if self.shape in ['rect','tri']:
-            plt.arrow(self.col[1], self.row[1], 0,self.element_spacing[0], length_includes_head=True,width=.025)
-            plt.arrow(self.col[1], self.row[1], self.element_spacing[1], 0, length_includes_head=True,width=.025)
-            plt.text(self.col[1], self.row[1] + self.element_spacing[0]/2,str(self.element_spacing[0]),ha='center',va='center',backgroundcolor='white')
-            plt.text(self.col[1]+ self.element_spacing[1]/2, self.row[1] ,str(self.element_spacing[1]),ha='center',va='center',backgroundcolor='white')
+        # ax = plt.gca()
+        # if self.shape in ['rect','tri']:
+        #     plt.arrow(self.col[0], self.row[0], 0,self.element_spacing[0], length_includes_head=True,width=.025)
+        #     plt.arrow(self.col[0], self.row[0], self.element_spacing[1], 0, length_includes_head=True,width=.025)
+        #     plt.text(self.col[0], self.row[0] + self.element_spacing[0]/2,str(self.element_spacing[0]),ha='center',va='center',backgroundcolor='white')
+        #     plt.text(self.col[0]+ self.element_spacing[1]/2, self.row[1] ,str(self.element_spacing[1]),ha='center',va='center',backgroundcolor='white')
         plt.xlabel('wavelength')
         plt.ylabel('wavelength')
         plt.title('Array Manifold')
@@ -210,7 +215,7 @@ class PlanarArray():
         return theta_cut , np.hstack((np.flip(G[idx_phi_cut2,1:]), G[idx_phi_cut1,:]) )
         
     
-    def calc_peak_sll_hpbw_calc(self):
+    def calc_peak_sll_hpbw(self):
         '''Function calculates the Peak value and angle, SLL, and HPBW of G in dB
         assuming a pattern with a single peak (no grating lobes)'''
         theta_deg,G = self.pattern_cut(self.scan_angle[1])
@@ -231,13 +236,16 @@ class PlanarArray():
         return self.pattern_params
     
     @staticmethod
-    def _plot(x,y,fig=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title = ''):
+    def _plot(x,y,fig=None,ax=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title = ''):
         peak_plot = 5 * (int(np.max(y) / 5) + 1)
         if not isinstance(fig, matplotlib.figure.Figure):
             fig, ax = plt.subplots(figsize=(8,6))
-
+        if ax:
+            plt.sca(ax)
+        # else:
+        #     ax = fig.add_axes()
         plt.plot(x,y,marker)
-        ax = plt.gca()
+       # ax = plt.gca()
         plt.xlabel(xlab)
         plt.ylabel(ylab)
         plt.title(title)
@@ -252,13 +260,18 @@ class PlanarArray():
         return  fig, ax
 
     @staticmethod
-    def _polar(t,r,fig=None,marker = '-',tlim = None, rlim = None ,title=''):
+    def _polar(t,r,fig=None,ax=None,marker = '-',tlim = None, rlim = None ,title=''):
         peak_plot = 5 * (int(np.max(r) / 5) + 1)
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection': 'polar'})
-        # else:
-        #     ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
-        ax = plt.gca()
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,matplotlib.axes.Axes)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9],polar=True)
+        elif not isinstance(fig, matplotlib.figure.Figure):
+            if isinstance(ax,matplotlib.axes.Axes):
+                fig = ax.get_figure()
+            else:
+                fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection': 'polar'})
 
         ax.plot(np.radians(t), r)
         ax.set_thetagrids(angles=np.linspace(-90,90,13))
@@ -336,13 +349,26 @@ class PlanarArray():
         
     
     @staticmethod
-    def _polar3D(T,P,G,R,C,g_range=30,fig=None,title=''):
+    def _polar3D(T,P,G,R,C,g_range=30,fig=None,ax=None,title=''):
         
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
-        else:
-            ax = fig.add_subplot(projection='3d')
+        # if (not isinstance(fig, matplotlib.figure.Figure) and
+        #     not isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D)):
+        #     fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
+        # elif (isinstance(fig, matplotlib.figure.Figure) and
+        #      not isinstance(ax, mpl_toolkits.mplot3d.axes3d.Axes3D)):
+        #     ax = fig.add_subplot(projection='3d')
         
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,mpl_toolkits.mplot3d.axes3d.Axes3D)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9],projection='3d')
+        elif not isinstance(fig, matplotlib.figure.Figure):
+           if isinstance(ax,mpl_toolkits.mplot3d.axes3d.Axes3D):
+               fig = ax.get_figure()
+           else:
+               fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
+            
         peak = np.max(G)
 
         G = G - peak + g_range
@@ -370,8 +396,8 @@ class PlanarArray():
         ax.set_zlim([-rat,rat])
         ax.set_xlim([-rat,rat])
         ax.set_ylim([-rat,rat])
-        plt.title(title)
-        plt.axis('off')
+        ax.set_title(title)
+        ax.axis('off')
         # ax.plot_wireframe(X,Y,Z,rstride=20,cstride=20)
         ax.view_init(elev=24, azim=25)
         fig.colorbar(cm.ScalarMappable(norm=plt.Normalize(vmin=peak-g_range,vmax=peak), cmap='jet'),shrink=0.5,ax=ax)
@@ -382,21 +408,50 @@ class PlanarArray():
     
     def pattern_contour(self,**kwargs):
         G =  20 * np.log10(np.abs(self.AF))
-        [T,P] = np.meshgrid(self.theta,self.phi)
-        return self._plot_contour(T,P,G,**kwargs);
+        # [T,P] = np.meshgrid(self.theta,self.phi)
+        # idx_p = [np.argmin(abs(self.phi-phi_0)) for phi_0 in [90,180,270]]
+        # G1 = G[0:idx_p[0],:]
+        # G2 = np.flip(G[idx_p[0]:idx_p[1],1:],axis=1)
+        # G3 = np.flip(G[idx_p[1]:idx_p[2],1:],axis=1)
+        # G4 = G[idx_p[2]:-1,:]
+        # print(G1.shape,G2.shape,G3.shape,G4.shape)
+        # GT = np.vstack((np.hstack((G2,G4)), np.hstack((G3,G1))))
+        # thetaT = np.linspace(-180,180,2*len(self.theta)-1)
+        # phiT = np.linspace(-90,90,int(len(self.phi)/2))
+        # [TT,PT] = np.meshgrid(thetaT,phiT)
+
+        # print(TT.shape,PT.shape,GT.shape  )  
+        G11 = np.flip(np.roll(G[1:,1:],int(len(self.phi)/2),axis=0))
+        G12 = np.flip(G[1:,:],axis=0)
+        G21 = np.flip(np.roll(G[:,1:],int(len(self.phi)/2),axis=0),axis=1)
+        G22 = G
+        # GT = np.vstack((np.hstack((np.flip(G[1:,1:],axis=1),np.flip(G[1:,:],axis=0))), np.hstack((np.flip(G[:,1:],axis=1),G))))
+        GT = np.vstack((np.hstack((G11,G12)),np.hstack((G21,G22))))
+        thetaT = np.hstack((-np.flip(self.theta[1:]), self.theta))
+        phiT = np.hstack((-np.flip(self.phi[1:]), self.phi))
+        [TT,PT] = np.meshgrid(thetaT,phiT)
+        
+        return self._plot_contour(TT,PT,GT,**kwargs);
         
     @staticmethod
-    def _plot_contour(T,P,G,g_range=30,fig=None,tlim = None, plim = None,tlab='theta',plab='phi',title=''):
+    def _plot_contour(T,P,G,g_range=30,fig=None,ax=None,tlim = [-180,180], plim = [-90,90],tlab=r'$\theta$',plab=r'$\phi$',title=''):
         
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6))
-        else:
-            ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,matplotlib.axes.Axes)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9]);
+        elif not isinstance(fig, matplotlib.figure.Figure):
+            if isinstance(ax,matplotlib.axes.Axes):
+                fig = ax.get_figure();
+            else:
+                fig, ax = plt.subplots(figsize=(8,6))
+        
             
         peak = np.max(G)
         G[G < (peak - g_range)] = peak - g_range
-        G1 = np.vstack((G[int(G.shape[0]/2)+1:,:],G[:int(G.shape[0]/2)+1,:]))
-        plt.contourf(P-180,T,G1,cmap='hot')
+        plt.sca(ax)
+        plt.contourf(P,T,G,cmap='hot')
         plt.colorbar()
         plt.clim([peak-g_range,peak])
         plt.xlabel(plab);
@@ -407,19 +462,32 @@ class PlanarArray():
         
         return fig,ax;
 
-    def polarsurf(self,g_range=30,fig=None,title='Polar Surf'):
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6))
-        else:
-            ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
+    def polarsurf(self,g_range=30,fig=None,ax=None,title='Polar Surf'):
         
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,matplotlib.axes.Axes)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9]);
+        elif not isinstance(fig, matplotlib.figure.Figure):
+            if isinstance(ax,matplotlib.axes.Axes):
+                fig = ax.get_figure();
+            else:
+                fig, ax = plt.subplots(figsize=(8,6))
+                
+        plt.sca(ax)
+        # if not isinstance(fig, matplotlib.figure.Figure):
+        #     fig, ax = plt.subplots(figsize=(8,6))
+        # else:
+        #     ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
+
         G =  20 * np.log10(np.abs(self.AF))
         [T,P] = np.meshgrid(self.theta,self.phi)
         peak = np.max(G)
         X = np.sin(np.radians(T)) * np.cos(np.radians(P))
 
         Y = np.sin(np.radians(T)) * np.sin(np.radians(P))
-        G[G < (peak - g_range)] = peak - g_range
+        G[G < (peak - g_range)] = peak - g_range -1
 
         for p in np.linspace(0,330,12) * np.pi / 180:
             plt.plot([0, np.cos(p)],[0, np.sin(p)],'--',color=[0.5,0.5,0.5],alpha=0.5)
@@ -433,21 +501,33 @@ class PlanarArray():
 
         plt.axis('equal')
         plt.axis('off')
-        plt.contourf(X,Y,G,cmap='hot')
+        CS3 = plt.contourf(X,Y,G,30,cmap=cm.jet,extend='min',vmin=peak-g_range,vmax=peak)
+        # CS3.cmap.set_under('blue')
+
         plt.colorbar()
         plt.clim([peak-g_range,peak])
         plt.title(title)
         plt.text(np.cos(np.pi/20),np.sin(np.pi/20),' phi')
         plt.plot(np.cos(np.pi/18),np.sin(np.pi/18),'^',color='black')
         return fig,ax;
-    def polarsphere(self,g_range=30,fig=None):
+    def polarsphere(self,g_range=30,fig=None,ax=None):
         
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
-        else:
-            ax = fig.add_subplot(projection='3d')
+        # if not isinstance(fig, matplotlib.figure.Figure):
+        #     fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
+        # else:
+        #     ax = fig.add_subplot(projection='3d')
         
-        
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,mpl_toolkits.mplot3d.axes3d.Axes3D)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9],projection='3d')
+        elif not isinstance(fig, matplotlib.figure.Figure):
+           if isinstance(ax,mpl_toolkits.mplot3d.axes3d.Axes3D):
+               fig = ax.get_figure()
+           else:
+               fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection':'3d'})
+        plt.sca(ax)    
         [T,P] = np.meshgrid(self.theta,self.phi)
         G =  20 * np.log10(np.abs(self.calc_AF))
         peak = np.max(G)
@@ -460,7 +540,7 @@ class PlanarArray():
         Z = np.cos(np.radians(T))
 
         ax.plot_surface(X,Y,Z,facecolors=plt.cm.jet(norm(G)),rstride=2,cstride=1,alpha=.7)
-        plt.axis('off')
+        ax.axis('off')
         rat = 1.25
         # ax.view_init(elev=90, azim=-90)
         ax.plot([0,rat],[0,0],'black')
