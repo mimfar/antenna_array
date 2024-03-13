@@ -33,19 +33,25 @@ class LinearArray():
         '''AF_calc calculates the Array Factor (AF) of a linear antenna array with 
         uniform antenna element spacing 
         num_elem              :  # of elements
+        element_spacing       : spacing between the array elements
         scan_angle (deg): A progressive phase shift will be applied to array elements to scan the beam to scan angle
         theta (deg)     : spatial angle range -90:90 with braodside=0
         element_pattern :Applies cosine envelope on top of the array factor
         The Gain is calculated for the array factor only not array factor x element pattern '''
         
-        assert num_elem > 0 , ('array length can not be zero')
+        assert num_elem > 0 , ('num_elem must be > 0  ')
+        
         self.num_elem = num_elem
         self.element_spacing = element_spacing
+        
         if isinstance(self.element_spacing,(int,float)):   
+            assert element_spacing > 0 , ('element_spacing must be > 0  ')
             self.X = np.linspace(0,self.num_elem-1,self.num_elem) * self.element_spacing
         elif isinstance(self.element_spacing,Iterable): 
             self.X = np.insert(np.cumsum(element_spacing),0,0)
             self.num_elem = len(self.X)
+        else:
+            assert False, ('Invalid element_spacing')
         self.X = self.X - np.mean(self.X)
         self.scan_angle = scan_angle
         self.theta = theta
@@ -125,34 +131,58 @@ class LinearArray():
         return self.pattern_params
     
     @staticmethod
-    def _plot(x,y,fig=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title = ''):
-        peak_plot = 5 * (int(np.max(y) / 5) + 1)
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6))
+    def _plot(x,y,fig=None,ax=None,marker = '-',xlim = None, ylim = None, xlab = r'$\theta$',ylab = 'dBi',title = ''):
+        
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,matplotlib.axes.Axes)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9]);
+        elif not isinstance(fig, matplotlib.figure.Figure):
+            if isinstance(ax,matplotlib.axes.Axes):
+                fig = ax.get_figure();
+            else:
+                fig, ax = plt.subplots(figsize=(8,6))
+    
 
-        plt.plot(x,y,marker)
-        ax = plt.gca()
-        plt.xlabel(xlab)
-        plt.ylabel(ylab)
-        plt.title(title)
+        ax.plot(x,y,marker)
+        ax.set_xlabel(xlab)
+        ax.set_ylabel(ylab)
+        ax.set_title(title)
+        
+        peak_plot = 5 * (int(np.max(y) / 5) + 1)
+
         if not xlim:
            xlim = (np.min(x),np.max(x))
         if not ylim:
             ylim = ((peak_plot-30,peak_plot))
         
-        plt.xlim(xlim)
-        plt.ylim(ylim)
-        plt.grid(True)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax.grid(True)
         return  fig, ax
 
     @staticmethod
-    def _polar(t,r,fig=None,marker = '-',tlim = None, rlim = None ,title=''):
+    def _polar(t,r,fig=None,ax=None,marker = '-',tlim = None, rlim = None ,title=''):
+        
+        if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,matplotlib.axes.Axes)):
+            if fig.axes:
+                ax = fig.axes[0]
+            else:
+                ax = fig.add_axes([0.1,0.1,0.9,0.9],polar=True)
+        elif not isinstance(fig, matplotlib.figure.Figure):
+            if isinstance(ax,matplotlib.axes.Axes):
+                fig = ax.get_figure()
+            else:
+                fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection': 'polar'})
+        
+        # if not isinstance(fig, matplotlib.figure.Figure):
+        #     fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection': 'polar'})
+        # else:
+        #     ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
+        
         peak_plot = 5 * (int(np.max(r) / 5) + 1)
-        if not isinstance(fig, matplotlib.figure.Figure):
-            fig, ax = plt.subplots(figsize=(8,6),subplot_kw={'projection': 'polar'})
-        else:
-            ax = fig.add_axes([0, 0, 1.6, 1.2], polar=True)
-            
+  
         ax.plot(np.radians(t), r)
         ax.set_thetagrids(angles=np.linspace(-90,90,13))
         if tlim:

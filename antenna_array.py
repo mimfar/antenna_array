@@ -43,18 +43,18 @@ def calc_AF_(X,I,P,theta,element_pattern=True):
     
     return AF
 
-def calc_AF(N,element_spacing,scan_angle,theta=None,element_pattern=True):
+def calc_AF(num_elem,element_spacing,scan_angle,theta=None,element_pattern=True):
     
     '''AF_calc calculates the Array Factor (AF) of a linear antenna array with 
     uniform antenna element spacing 
-    N               :  # of elements
+    num_elem          :  # of elements
     scan_angle (deg): A progressive phase shift will be applied to array elements to scan the beam to scan angle
     theta (deg)     : spatial angle range -90:90 with braodside=0
     element_pattern :Applies cosine envelope on top of the array factor
     The Gain is calculated for the array factor only not array factor x element pattern '''
 
-    L = (N-1) * element_spacing
-    X = np.linspace(0,N-1,N) * element_spacing
+    L = (num_elem-1) * element_spacing
+    X = np.linspace(0,num_elem-1,num_elem) * element_spacing
     P = -2 * np.pi * X * np.sin(np.radians(scan_angle)) 
     I = np.ones(X.shape)
     if theta == None:
@@ -89,32 +89,34 @@ def calc_peak_sll_hpbw(G, theta_deg):
     SLL = peak - np.max([np.max(G[0:idx_null_L]),np.max(G[idx_null_R:])])
     return peak, theta_peak, SLL, HPBW
 
-def plot_pattern(x,y,fig=None,marker = '-',xlim = None, ylim = None, xlab = 'x',ylab = 'y',title=''):
+def plot_pattern(x,y,fig=None,ax=None,marker = '-',xlim = None, ylim = None, xlab = r'$\theta$',ylab = 'dBi',title=''):
     peak_plot = 5 * (int(np.max(y) / 5) + 1)
-    if not isinstance(fig, matplotlib.figure.Figure):
-        fig, ax = plt.subplots(figsize=(6,4))
-    if fig.axes[0]:
-        plt.sca(fig.axes[0]) 
-
-    else:
-        plt.sca(fig.add_subplot(111))
+    if isinstance(fig, matplotlib.figure.Figure) and (not isinstance(ax,matplotlib.axes.Axes)):
+        if fig.axes:
+            ax = fig.axes[0]
+        else:
+            ax = fig.add_axes([0.1,0.1,0.9,0.9])
+    elif not isinstance(fig, matplotlib.figure.Figure):
+        if isinstance(ax,matplotlib.axes.Axes):
+            fig = ax.get_figure()
+        else:
+            fig, ax = plt.subplots(figsize=(8,6))
         
     
-    plt.plot(x,y,marker)
-    ax = plt.gca()
-    plt.xlabel(xlab)
-    plt.ylabel(ylab)
+    ax.plot(x,y,marker)
+    ax.set_xlabel(xlab)
+    ax.set_ylabel(ylab)
     if xlim:
-        plt.xlim(xlim)
+        ax.set_xlim(xlim)
     else:
-        plt.xlim(np.min(x),np.max(x))
+        ax.set_ylim(np.min(x),np.max(x))
             
     if ylim:
-        plt.ylim(ylim)
+        ax.set_ylim(ylim)
     else:
-        plt.ylim((peak_plot-30,peak_plot))
-    plt.grid(True)
-    
+        ax.set_ylim((peak_plot-30,peak_plot))
+    ax.grid(True)
+    ax.set_title(title)
     return fig,ax
 
 def polar_pattern(x,y,fig=None,marker = '-',rlim = None, tlim = None ,title=''):
